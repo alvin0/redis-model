@@ -1,0 +1,41 @@
+{
+    "name": "alvin0/redis-model",
+    "keywords": [
+        "laravel",
+        "redis",
+        "redis-model"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Chau Lam Dinh Ai",
+            "email": "chaulamdinhai@gmail.com"
+        }
+    ],
+    "require": {
+    },
+    "require-dev": {
+    },
+    "autoload": {
+        "psr-4": {
+            "Alvin0\\RedisModel\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Alvin0\\RedisModel\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Alvin0\\RedisModel\\RedisModelServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
