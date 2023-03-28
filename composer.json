@@ -1,6 +1,6 @@
 {
     "name": "alvin0/redis-model",
-    "description": "The Redis models.",
+    "description": "Introducing Redis Model - a Laravel package that connects to Redis and functions similarly to Eloquent Model, offering efficient data manipulation and retrieval capabilities.",
     "keywords": [
         "laravel",
         "redis",
@@ -21,6 +21,7 @@
         "illuminate/console": "^9|^10"
     },
     "require-dev": {
+        "pestphp/pest": "^2.2"
     },
     "autoload": {
         "psr-4": {
