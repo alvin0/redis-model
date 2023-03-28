@@ -185,6 +185,18 @@ class Builder
     }
 
     /**
+     * Execute the destroy data for pattern keys.
+     *
+     * @return bool
+     */
+    public function destroy()
+    {
+        $keys = $this->getRepository()->getHashByPattern($this->getHashPattern());
+
+        return $this->getRepository()->destroyHash($keys);
+    }
+
+    /**
      * Execute the fetch properties for keys.
      *
      * @param  array|string  $columns

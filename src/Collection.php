@@ -1,160 +1,11 @@
 <?php
 namespace Alvin0\RedisModel;
 
-use Illuminate\Support\Collection as BaseCollection;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection as BaseCollection;
 
 class Collection extends BaseCollection
 {
-    /**
-     * @param mixed $item
-     *
-     * @return array
-     */
-    private function toArrayRedisModel($item)
-    {
-        return $item instanceof Model ? $item->toArray() : $item;
-    }
-
-    /**
-     * Filter items by the given key value pair.
-     *
-     * @param  string  $key
-     * @param  \Illuminate\Contracts\Support\Arrayable|iterable  $values
-     * @param  bool  $strict
-     * @return static
-     */
-    public function whereIn($key, $values, $strict = false)
-    {
-        $values = $this->getArrayableItems($values);
-
-        return $this
-            ->filter(fn($item) => in_array(data_get($this->toArrayRedisModel($item), $key), $values, $strict));
-    }
-
-    /**
-     * Filter items such that the value of the given key is not between the given values.
-     *
-     * @param  string  $key
-     * @param  \Illuminate\Contracts\Support\Arrayable|iterable  $values
-     * @return static
-     */
-    public function whereNotBetween($key, $values)
-    {
-        return function ($item) use ($values) {
-            $item = $this->toArrayRedisModel($item);
-
-            return data_get($item, $key) < reset($values) || data_get($item, $key) > end($values);
-        };
-    }
-
-    /**
-     * Filter items by the given key value pair.
-     *
-     * @param  string  $key
-     * @param  \Illuminate\Contracts\Support\Arrayable|iterable  $values
-     * @param  bool  $strict
-     * @return static
-     */
-    public function whereNotIn($key, $values, $strict = false)
-    {
-        $values = $this->getArrayableItems($values);
-
-        return $this
-            ->reject(fn($item) => in_array(data_get($this->toArrayRedisModel($item), $key), $values, $strict));
-    }
-
-    /**
-     * Get a value retrieving callback.
-     *
-     * @param  callable|string|null  $value
-     * @return callable
-     */
-    protected function valueRetriever($value)
-    {
-        if ($this->useAsCallable($value)) {
-            return $value;
-        }
-
-        return function ($item) use ($value) {
-            return data_get($this->toArrayRedisModel($item), $value);
-        };
-    }
-
-    /**
-     * Make a function to check an item's equality.
-     *
-     * @param  mixed  $value
-     * @return \Closure(mixed): bool
-     */
-    protected function equality($value)
-    {
-        return function ($item) use ($value) {
-            return $this->toArrayRedisModel($item) === $value;
-        };
-    }
-
-    /**
-     * Get an operator checker callback.
-     *
-     * @param  callable|string  $key
-     * @param  string|null  $operator
-     * @param  mixed  $value
-     * @return \Closure
-     */
-    protected function operatorForWhere($key, $operator = null, $value = null)
-    {
-        if ($this->useAsCallable($key)) {
-            return $key;
-        }
-
-        if (func_num_args() === 1) {
-            $value = true;
-
-            $operator = '=';
-        }
-
-        if (func_num_args() === 2) {
-            $value = $operator;
-
-            $operator = '=';
-        }
-
-        return function ($item) use ($key, $operator, $value) {
-            $retrieved = data_get($this->toArrayRedisModel($item), $key);
-
-            $strings = array_filter([$retrieved, $value], function ($value) {
-                return is_string($value) || (is_object($value) && method_exists($value, '__toString'));
-            });
-
-            if (count($strings) < 2 && count(array_filter([$retrieved, $value], 'is_object')) == 1) {
-                return in_array($operator, ['!=', '<>', '!==']);
-            }
-
-            switch ($operator) {
-                default:
-                case '=':
-                case '==':return $retrieved == $value;
-                case '!=':
-                case '<>':return $retrieved != $value;
-                case '<':
-                    return $retrieved < $value;
-                case '>':
-                    return $retrieved > $value;
-                case '<=':
-                    return $retrieved <= $value;
-                case '>=':
-                    return $retrieved >= $value;
-                case '===':
-                    return $retrieved === $value;
-                case '!==':
-                    return $retrieved !== $value;
-                case '<=>':
-                    return $retrieved <=> $value;
-            }
-        };
-    }
-
     /**
      * Find a model in the collection by key.
      *
@@ -182,7 +33,7 @@ class Collection extends BaseCollection
             return $this->whereIn($this->first()->getKeyName(), $key);
         }
 
-        return Arr::first($this->items, fn ($model) => $model->getKey() == $key, $default);
+        return Arr::first($this->items, fn($model) => $model->getKey() == $key, $default);
     }
 
     /**
@@ -200,27 +51,20 @@ class Collection extends BaseCollection
         }
 
         if ($key instanceof Model) {
-            return parent::contains(fn ($model) => $model->is($key));
+            return parent::contains(fn($model) => $model->is($key));
         }
 
-        return parent::contains(fn ($model) => $model->getKey() == $key);
+        return parent::contains(fn($model) => $model->getKey() == $key);
     }
 
     /**
-     * Merge the collection with the given items.
+     * Get the array of primary keys.
      *
-     * @param  iterable<array-key, TModel>  $items
-     * @return static
+     * @return array<int, array-key>
      */
-    public function merge($items)
+    public function modelKeys()
     {
-        $dictionary = $this->getDictionary();
-
-        foreach ($items as $item) {
-            $dictionary[$this->getDictionaryKey($item->getKey())] = $item;
-        }
-
-        return new static(array_values($dictionary));
+        return array_map(fn($model) => $model->getKey(), $this->items);
     }
 
     /**
@@ -235,7 +79,7 @@ class Collection extends BaseCollection
     {
         $result = parent::map($callback);
 
-        return $result->contains(fn ($item) => ! $item instanceof Model) ? $result->toBase() : $result;
+        return $result->contains(fn($item) => !$item instanceof Model) ? $result->toBase() : $result;
     }
 
     /**
@@ -253,7 +97,7 @@ class Collection extends BaseCollection
     {
         $result = parent::mapWithKeys($callback);
 
-        return $result->contains(fn ($item) => ! $item instanceof Model) ? $result->toBase() : $result;
+        return $result->contains(fn($item) => !$item instanceof Model) ? $result->toBase() : $result;
     }
 
     /**
@@ -269,7 +113,7 @@ class Collection extends BaseCollection
         $dictionary = $this->getDictionary($items);
 
         foreach ($this->items as $item) {
-            if (! isset($dictionary[$this->getDictionaryKey($item->getKey())])) {
+            if (!isset($dictionary[$this->getDictionaryKey($item->getKey())])) {
                 $diff->add($item);
             }
         }
@@ -286,10 +130,36 @@ class Collection extends BaseCollection
      */
     public function unique($key = null, $strict = false)
     {
-        if (! is_null($key)) {
+        if (!null === $key) {
             return parent::unique($key, $strict);
         }
+
         return new static(array_values($this->getDictionary()));
+    }
+
+    /**
+     * Get a dictionary key attribute - casting it to a string if necessary.
+     *
+     * @param  mixed  $attribute
+     * @return mixed
+     *
+     * @throws \Doctrine\Instantiator\Exception\InvalidArgumentException
+     */
+    protected function getDictionaryKey($attribute)
+    {
+        if (is_object($attribute)) {
+            if (method_exists($attribute, '__toString')) {
+                return $attribute->__toString();
+            }
+
+            if ($attribute instanceof UnitEnum) {
+                return $attribute instanceof BackedEnum ? $attribute->value : $attribute->name;
+            }
+
+            throw new InvalidArgumentException('Model attribute value is an object but does not have a __toString method.');
+        }
+
+        return $attribute;
     }
 
     /**
@@ -300,7 +170,7 @@ class Collection extends BaseCollection
      */
     public function only($keys)
     {
-        if (is_null($keys)) {
+        if (null === $keys) {
             return new static($this->items);
         }
 
@@ -323,6 +193,17 @@ class Collection extends BaseCollection
     }
 
     /**
+     * Append an attribute across the entire collection.
+     *
+     * @param  array<array-key, string>|string  $attributes
+     * @return $this
+     */
+    public function append($attributes)
+    {
+        return $this->each->append($attributes);
+    }
+
+    /**
      * Get a dictionary keyed by primary keys.
      *
      * @param  iterable<array-key, TModel>|null  $items
@@ -330,7 +211,7 @@ class Collection extends BaseCollection
      */
     public function getDictionary($items = null)
     {
-        $items = is_null($items) ? $this->items : $items;
+        $items = null === $items ? $this->items : $items;
 
         $dictionary = [];
 
@@ -339,16 +220,6 @@ class Collection extends BaseCollection
         }
 
         return $dictionary;
-    }
-
-    /**
-     * Get a lazy collection for the items in this collection.
-     *
-     * @return \Illuminate\Support\LazyCollection<TKey, TValue>
-     */
-    public function lazy()
-    {
-        return new LazyCollection($this->items->toArray());
     }
 
     /**
@@ -364,6 +235,16 @@ class Collection extends BaseCollection
     public function countBy($countBy = null)
     {
         return $this->toBase()->countBy($countBy);
+    }
+
+    /**
+     * Collapse the collection of items into a single array.
+     *
+     * @return \Illuminate\Support\Collection<int, mixed>
+     */
+    public function collapse()
+    {
+        return $this->toBase()->collapse();
     }
 
     /**
@@ -388,6 +269,30 @@ class Collection extends BaseCollection
     }
 
     /**
+     * Get the keys of the collection items.
+     *
+     * @return \Illuminate\Support\Collection<int, TKey>
+     */
+    public function keys()
+    {
+        return $this->toBase()->keys();
+    }
+
+    /**
+     * Pad collection to the specified length with a value.
+     *
+     * @template TPadValue
+     *
+     * @param  int  $size
+     * @param  TPadValue  $value
+     * @return \Illuminate\Support\Collection<int, TModel|TPadValue>
+     */
+    public function pad($size, $value)
+    {
+        return $this->toBase()->pad($size, $value);
+    }
+
+    /**
      * Get an array with the values of a given key.
      *
      * @param  string|array<array-key, string>  $value
@@ -396,7 +301,7 @@ class Collection extends BaseCollection
      */
     public function pluck($value, $key = null)
     {
-        return new static(Arr::pluck($this->toArray(), $value, $key));
+        return $this->toBase()->pluck($value, $key);
     }
 
     /**
@@ -410,5 +315,16 @@ class Collection extends BaseCollection
     public function zip($items)
     {
         return $this->toBase()->zip(...func_get_args());
+    }
+
+    /**
+     * Get the comparison function to detect duplicates.
+     *
+     * @param  bool  $strict
+     * @return callable(TModel, TModel): bool
+     */
+    protected function duplicateComparator($strict)
+    {
+        return fn($a, $b) => $a->is($b);
     }
 }

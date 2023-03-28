@@ -8,6 +8,11 @@ return [
         'prefix' => env('REDIS_MODEL_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_') . '_redis_model_'),
     ],
 
+    'commands' => [
+        'generate_path' => app_path('RedisModels'),
+        'rootNamespace' => 'App\\RedisModels',
+    ],
+
     'database' => [
         'redis_model_default' => [
             'url' => env('REDIS_URL'),

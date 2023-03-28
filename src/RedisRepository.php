@@ -155,12 +155,13 @@ class RedisRepository
      */
     public function updateRedisHashes(string $oldHash, array $data, string $newHash = null)
     {
-        return $this->transaction(function ($redis) use ($oldHash, $newHash, $data) {
+        return $this->transaction(function ($conTransaction) use ($oldHash, $newHash, $data) {
             try {
                 if ($newHash != null && $oldHash != $newHash) {
-                    $redis->rename($oldHash, $newHash);
+                    $conTransaction->rename($oldHash, $newHash);
                 }
-                $redis->hMSet($newHash, $data);
+
+                $conTransaction->hMSet($newHash, $data);
 
                 return true;
             } catch (Exception $e) {
@@ -320,8 +321,8 @@ class RedisRepository
      */
     public function transaction(callable $callback)
     {
-        return $this->getConnection()->transaction(function ($multi) use ($callback) {
-            return $callback($multi);
+        return $this->getConnection()->transaction(function ($conTransaction) use ($callback) {
+            return $callback($conTransaction);
         });
     }
 

@@ -487,7 +487,7 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
                     return (string) $item;
                 })->toArray();
 
-                $keyOrigin = $build->compileHashByFields($attributes);
+                $keyOrigin = $build->compileHashByFields($this->getOriginal());
                 $keyNew = $build->compileHashByFields($attributes);
                 $build->getRepository()->updateRedisHashes($keyOrigin, $attributes, $keyNew);
 
@@ -591,7 +591,7 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
      *
      * @return mixed Returns the result of inserting multiple Redis hashes, or false if the data is invalid.
      */
-    public static function inserts(array $dataInsert)
+    public static function insert(array $dataInsert)
     {
         $inserts = [];
         $build = static::query();
@@ -966,7 +966,7 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
     {
     }
 
-    /**
+   /**
      * Determine if the given attribute exists.
      *
      * @param  mixed  $offset
@@ -975,7 +975,7 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
     public function offsetExists($offset): bool
     {
         try {
-            return !null === $this->getAttribute($offset);
+            return ! is_null($this->getAttribute($offset));
         } catch (MissingAttributeException) {
             return false;
         }

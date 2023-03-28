@@ -1,9 +1,12 @@
 {
     "name": "alvin0/redis-model",
+    "description": "The Redis models.",
     "keywords": [
         "laravel",
         "redis",
-        "redis-model"
+        "redis-model",
+        "model",
+        "orm"
     ],
     "license": "MIT",
     "authors": [
@@ -13,6 +16,9 @@
         }
     ],
     "require": {
+        "php": "^8.0.2",
+        "illuminate/database": "^9|^10",
+        "illuminate/console": "^9|^10"
     },
     "require-dev": {
     },

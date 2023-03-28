@@ -1,43 +1,27 @@
 # Model
 
+## Installation
+
+You may install Redis Model via the Composer package manager:
+```
+composer require alvin0/database-json-laravel 
+```
+
+You should publish the RedisModel configuration and migration files using the `vendor:publish` Artisan command. The `redis-model` configuration file will be placed in your application's `config` directory:
+
+```
+php artisan vendor:publish --provider="Alvin0\RedisModel\RedisModelServiceProvider"
+```
 ## Generate Model
-
+```
+php artisan redis-model:model User
+```
 ## Model Conventions
-### Table Names
-> So, in this case, RedisModel will assume the `User` model stores records in the `users` table.
+### Primary Keys, Sub-Keys And Fillable
 
-```php
-use Alvin0\RedisModel\Model;
-
-class User extends Model {
-    // ...
-}
-```
-
-> The final name before creating the hash code is based on the `prefix of the table + table name`.
-> If your model's corresponding database table does not fit this convention, you may manually specify the model's table name by defining a table property on the model:
-```php
-use Alvin0\RedisModel\Model;
-
-class User extends Model {
-    /**
-     * The model's table.
-     *
-     * @var array
-     */
-    protected $table = "";
-
-    /**
-     * The model's prefixTable.
-     *
-     * @var array
-     */
-    protected $prefixTable = null;
-}
-```
-### Primary Keys And Sub Keys
-> Primary Keys are properties that are not assigned by default, and they determine the search behavior of the model. Make sure that the values of primary keys are unique to avoid confusion when retrieving data based on conditions.
-> Sub keys are keys that can be duplicated, and they will help you search using the where method in the model.
+Primary Keys are properties that are not assigned by default, and they determine the search behavior of the model. Make sure that the values of primary keys are unique to avoid confusion when retrieving data based on conditions.
+Sub keys are keys that can be duplicated, and they will help you search using the where method in the model.
+To declare attributes for a model, you need to declare them in the $fillable variable. You should also declare the primary key and subkeys in this variable.
 
 ```php
 use Alvin0\RedisModel\Model;
@@ -59,10 +43,54 @@ class User extends Model {
         'name',
         'role',
     ];
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<string>
+     */
+    protected $fillable = [
+            'email',
+            'name',
+            'role',
+            'address'
+    ];
+}
+```
+### Table Names
+So, in this case, RedisModel will assume the `User` model stores records in the `users` table.
+
+```php
+use Alvin0\RedisModel\Model;
+
+class User extends Model {
+    // ...
+}
+```
+
+The final name before creating the hash code is based on the `prefix of the table + table name`.
+If your model's corresponding database table does not fit this convention, you may manually specify the model's table name by defining a table property on the model:
+```php
+use Alvin0\RedisModel\Model;
+
+class User extends Model {
+    /**
+     * The model's table.
+     *
+     * @var array
+     */
+    protected $table = "";
+
+    /**
+     * The model's prefixTable.
+     *
+     * @var array
+     */
+    protected $prefixTable = null;
 }
 ```
 ### Timestamps
-> By default, RedisModel expects `created_at` and `updated_at` columns to exist on your model's corresponding database table. RedisModel will automatically set these column's values when models are created or updated. If you do not want these columns to be automatically managed by RedisModel, you should define a `$timestamps` property on your model with a value of `false`:
+By default, RedisModel expects `created_at` and `updated_at` columns to exist on your model's corresponding database table. RedisModel will automatically set these column's values when models are created or updated. If you do not want these columns to be automatically managed by RedisModel, you should define a `$timestamps` property on your model with a value of `false`:
 
 ```php
 use Alvin0\RedisModel\Model;
@@ -77,7 +105,7 @@ class User extends Model {
 }
 ```
 ### Configuring Connection Model
-> You can change the connection name for the model's connection. Make sure it is declared in the `redis-model` configuration file. By default, the model will use the `redis_model_default` connection name.
+You can change the connection name for the model's connection. Make sure it is declared in the `redis-model` configuration file. By default, the model will use the `redis_model_default` connection name.
 ```php
 use Alvin0\RedisModel\Model;
 
@@ -93,8 +121,8 @@ class User extends Model {
 ## Retrieving Models
 
 ### Building
-> Due to limitations in searching model properties, where is the only supported method. The where method will facilitate the search for primary key and sub-key in the model's table easily. You can add additional constraints to the query and then call the `get` method to retrieve the results:
-> The where method can only search for fields that are `primary key` and `sub keys`.
+Due to limitations in searching model properties, where is the only supported method. The where method will facilitate the search for primary key and sub-key in the model's table easily. You can add additional constraints to the query and then call the `get` method to retrieve the results:
+The where method can only search for fields that are `primary key` and `sub keys`.
 
 ```php
 use App\RedisModels\User;
@@ -103,14 +131,14 @@ User::where('email', 'email@gmail.com')
     ->where('role', 'admin')
     ->get();
 ```
->You can use * to match any keywords following the required keywords 
->Tip: where("field", "something_*")
+> Tip: where("field", "something_*")
+> You can use * to match any keywords following the required keywords. Looks like the same place as in SQL
 
 ```php
 use App\RedisModels\User;
 
 User::where('name', "user_*")->get();
-// result
+// result collection 
 // [
 //  ["name" => "user_1"],
 //  ["name" => "user_2"],
@@ -119,7 +147,7 @@ User::where('name', "user_*")->get();
 // ]
 ```
 ### Collection
-> As we have seen, Eloquent methods like `all` and `get` retrieve multiple records from the redis. However, these methods don't return a plain PHP array. Instead, an instance of `Alvin0\RedisModel\Collection` is returned.
+As we have seen, Eloquent methods like `all` and `get` retrieve multiple records from the redis. However, these methods don't return a plain PHP array. Instead, an instance of `Alvin0\RedisModel\Collection` is returned.
 - Method all()
 ```php
 use App\RedisModels\User;
@@ -134,7 +162,7 @@ User::where('name', "user_*")->get();
 ```
 
 ## Chunking Results
-> Your application may run out of memory if you attempt to load tens of thousands of Eloquent records via the `all` or `get` methods. Instead of using these methods, the chunk method may be used to process large numbers of models more efficiently.
+Your application may run out of memory if you attempt to load tens of thousands of Eloquent records via the `all` or `get` methods. Instead of using these methods, the chunk method may be used to process large numbers of models more efficiently.
 
 - Method chunk
 ```php
@@ -149,7 +177,7 @@ User::where('user_id', 1)
     });
 ```
 ### Retrieving Single Models
-> In addition to retrieving all of the records matching a given query, you may also retrieve single records using the `find`, `first` methods.Instead of returning a collection of models, these methods return a single model instance:
+In addition to retrieving all of the records matching a given query, you may also retrieve single records using the `find`, `first` methods.Instead of returning a collection of models, these methods return a single model instance:
 
 ```php
 use App\RedisModels\User;
@@ -163,7 +191,7 @@ $user = User::where('email', 'email@gmail.com')->first();
 ```
 ## Inserting & Updating Models
 ### Inserts
-> We also need to insert new records. Thankfully, Eloquent makes it simple. To insert a new record into the database, you should instantiate a new model instance and set attributes on the model. Then, call the save method on the model instance:
+We also need to insert new records. Thankfully, Eloquent makes it simple. To insert a new record into the database, you should instantiate a new model instance and set attributes on the model. Then, call the save method on the model instance:
 ```php
 use App\RedisModels\User;
 
@@ -175,7 +203,7 @@ $user->token = now();
 $user->save()
 ```
 ### Create Model
-> Alternatively, you may use the create method to `save` a new model using a single PHP statement. The inserted model instance will be returned to you by the create method:
+Alternatively, you may use the create method to `save` a new model using a single PHP statement. The inserted model instance will be returned to you by the create method:
 ```php
 use App\RedisModels\User;
 
@@ -189,7 +217,7 @@ $user->email //email@gmail.com
 ```
 
 ### Force Create Model
-> By default, the create method will automatically throw an error if the primary key is duplicated (`Alvin0\RedisModel\Exceptions\KeyExistException`). If you want to ignore this error, you can try the following approaches:
+By default, the create method will automatically throw an error if the primary key is duplicated (`Alvin0\RedisModel\Exceptions\KeyExistException`). If you want to ignore this error, you can try the following approaches:
 - Change property `preventCreateForce` to `false`
 ```php
 use Alvin0\RedisModel\Model;
@@ -219,8 +247,8 @@ $user->email //email@gmail.com
 
 ```
 
-### Inserts With Array
-> To solve the issue of inserting multiple items into a table, you can use the inserts function. It will perform the insert within a transaction to ensure a rollback in case of errors that you may not be aware of. It is recommended to use array chunk to ensure performance.
+### Insert Statements
+To solve the issue of inserting multiple items into a table, you can use the inserts function. It will perform the insert within a transaction to ensure a rollback in case of errors that you may not be aware of. It is recommended to use array chunk to ensure performance.
 
 ```php
 use App\RedisModels\User;
@@ -241,11 +269,11 @@ $seed = function ($limit) {
     return $users;
 };
 
-User::inserts($seed(10));
+User::insert($seed(10));
 ```
 
 ### Update Model
-> The `save` method may also be used to update models that already exist in the database. To update a model, you should retrieve it and set any attributes you wish to update. Then, you should call the model's `save` method. Again, the `updated_at` timestamp will automatically be updated, so there is no need to manually set its value:
+The `save` method may also be used to update models that already exist in the database. To update a model, you should retrieve it and set any attributes you wish to update. Then, you should call the model's `save` method. Again, the `updated_at` timestamp will automatically be updated, so there is no need to manually set its value:
 
 ```php
 use App\RedisModels\User;
@@ -257,14 +285,14 @@ $user->name = 'Alvin1';
 $user->save();
 ```
 
-> Method update is not supported for making changes on a collection. Please use it with an existing instance instead:
+Method update is not supported for making changes on a collection. Please use it with an existing instance instead:
 
 ```php
 $user = User::find('email@gmail.com')->update(['name' => 'Alvin1']);
 ```
 
 ### Deleting Models
-> To delete a model, you may call the delete method on the model instance:
+To delete a model, you may call the delete method on the model instance:
 
 ```php
 use App\RedisModels\User;
@@ -272,8 +300,17 @@ use App\RedisModels\User;
 $user = User::find('email@gmail.com')->delete();
 ```
 
+### Delete Statements
+The query builder's delete method may be used to delete records from the redis model.
+```php
+    User::where('email', '*@gmail.com')->destroy();
+
+    //or remove all data model
+    User::destroy();
+```
+
 ## Expire
-> The special thing when working with `Redis` is that you can set the expiration time of a key, and with a model instance, there will be a method to `set` and `get` the expiration time for it.
+The special thing when working with `Redis` is that you can set the expiration time of a key, and with a model instance, there will be a method to `set` and `get` the expiration time for it.
 ### Set Expire Model
 
 ```php

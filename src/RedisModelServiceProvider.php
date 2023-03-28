@@ -28,5 +28,14 @@ class RedisModelServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        $this->commands([
+            'Alvin0\RedisModel\Commands\RedisModelMakerCommand',
+        ]);
+
+        if (app()->runningInConsole()) {
+            $this->publishes([
+                __DIR__ . '/config/redis-model.php' => config_path('redis-model.php'),
+            ], 'redis-model');
+        }
     }
 }
