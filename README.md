@@ -29,7 +29,7 @@ Redis is not the place to store complex relational data and Redis emphasizes its
 | Update a lot of data | comming soon |
 | Relationship | No |
 
-### Redis Key Concept
+### Key structure
 
 Sample key structure for a Redis model in Laravel:
 
@@ -203,13 +203,16 @@ User::where('name', "user_*")->get();
 ```
 ### Collection
 As we have seen, Eloquent methods like `all` and `get` retrieve multiple records from the redis. However, these methods don't return a plain PHP array. Instead, an instance of `Alvin0\RedisModel\Collection` is returned.
+
 - Method all()
+
 ```php
 use App\RedisModels\User;
 
 User::all();
 ```
 - Method get()
+
 ```php
 use App\RedisModels\User;
 
