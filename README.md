@@ -30,14 +30,28 @@ Redis is not the place to store complex relational data and Redis emphasizes its
 | Relationship | No |
 
 ### Redis Key Concept
-- An sample key:
-laravel_redis_model_users:email:email@example:name:alvin:role:admin
 
-Laravel's prefix: laravel_redis_model
-The model name: users
-The primary key of model: email
-The sub-key of model: name, role
+Sample key structure for a Redis model in Laravel:
 
+`{redis_prefix}{redis_database_name}{model_name}:{primary_key}:{sub_key_1}:{sub_key_2}:...:{sub_key_n}`
+
+redis_prefix: The Redis prefix set in the Redis configuration file (e.g., 'laravel')
+redis_database_name: The name of the Redis database used for the model (e.g., 'redis_model')
+model_name: The name of the model (e.g., 'users')
+primary_key: The primary key of the model (e.g., 'email')
+sub_keys: Additional keys that belong to the model, which can be defined in the model's 'getSubKeys' method.
+Example key:
+
+`laravel_redis_model_users:email:email@example:name:alvin:role:admin`
+
+In this example:
+
+The Redis prefix is 'laravel'
+The Redis database name is 'redis_model'
+The model name is 'users'
+The primary key of the model is 'email'
+The sub-keys of the model are 'name' and 'role'.
+Note: The Redis prefix and database name can be configured in the 'redis-model' configuration file. The model's primary key and sub-keys can be defined in the model's 'primaryKey' and 'subKeys' property, respectively.
 
 ## Installation
 
