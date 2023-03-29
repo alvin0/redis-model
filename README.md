@@ -1,4 +1,59 @@
-# Model
+# Redis Model
+
+The Redis Model will help create multiple keys with the same prefix in Redis and group those keys together as a table in a SQL database. The Redis Model will create an instance similar to the Eloquent Model in Laravel. It will also provide complete methods for adding, deleting, updating, and retrieving data arrays with methods that are similar to those used in Eloquent.
+
+> No Relationship :
+Redis is not the place to store complex relational data and Redis emphasizes its ability to access data very quickly, so building Relationship methods between models is not necessary and it will take a lot of time to retrieve data.
+
+## Supports
+
+### Laravel version supports
+
+| Laravel | Is Support |
+| :---: | :---: |
+| < 8 | No |
+| 8 | Yes |
+| 9 | Yes |
+| 10 | Yes |
+
+### Model Supports
+
+| Function | Is Working |
+| --- | :---: |
+| CURD | Yes |
+| Condition Select | Yes |
+| Chunking | Yes |
+| Transaction | Yes |
+| Insert a lot of data | Yes |
+| Delete a lot of data | Yes |
+| Update a lot of data | comming soon |
+| Relationship | No |
+
+### Key structure
+
+Sample key structure for a Redis model in Laravel:
+
+`{redis_prefix}{redis_database_name}{model_name}:{primary_key}:{sub_key_1}:{sub_key_2}:...:{sub_key_n}`
+
+- redis_prefix: The Redis prefix set in the Redis configuration file.
+- redis_database_name: The name of the Redis database used for the model.
+- model_name: The name of the model.
+- primary_key: The primary key of the model.
+- sub_keys: Additional keys that belong to the model, which can be defined in the model 'subKey' property.
+
+Example key:
+
+`laravel_redis_model_users:email:email@example:name:alvin:role:admin`
+
+In this example:
+
+- The Redis prefix is 'laravel'
+- The Redis database name is 'redis_model'
+- The model name is 'users'
+- The primary key of the model is 'email'
+- The sub-keys of the model are 'name' and 'role'.
+
+> Note: The Redis prefix and database name can be configured in the 'redis-model' configuration file. The model's primary key and sub-keys can be defined in the model's 'primaryKey' and 'subKeys' property, respectively.
 
 ## Installation
 
@@ -148,13 +203,16 @@ User::where('name', "user_*")->get();
 ```
 ### Collection
 As we have seen, Eloquent methods like `all` and `get` retrieve multiple records from the redis. However, these methods don't return a plain PHP array. Instead, an instance of `Alvin0\RedisModel\Collection` is returned.
+
 - Method all()
+
 ```php
 use App\RedisModels\User;
 
 User::all();
 ```
 - Method get()
+
 ```php
 use App\RedisModels\User;
 
