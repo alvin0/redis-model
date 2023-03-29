@@ -130,7 +130,7 @@ class Collection extends BaseCollection
      */
     public function unique($key = null, $strict = false)
     {
-        if (!null === $key) {
+        if (null === $key) {
             return parent::unique($key, $strict);
         }
 

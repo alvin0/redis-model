@@ -4,7 +4,7 @@
 
 You may install Redis Model via the Composer package manager:
 ```
-composer require alvin0/database-json-laravel 
+ composer require alvin0/redis-model
 ```
 
 You should publish the RedisModel configuration and migration files using the `vendor:publish` Artisan command. The `redis-model` configuration file will be placed in your application's `config` directory:
