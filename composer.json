@@ -18,7 +18,8 @@
     "require": {
         "php": "^8.0.2",
         "illuminate/database": "^9|^10",
-        "illuminate/console": "^9|^10"
+        "illuminate/console": "^9|^10",
+        "predis/predis": "^2"
     },
     "require-dev": {
         "pestphp/pest": "^2.2"
