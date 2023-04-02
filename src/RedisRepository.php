@@ -1,6 +1,7 @@
 <?php
 namespace Alvin0\RedisModel;
 
+use Alvin0\RedisModel\Exceptions\ErrorTransactionException;
 use Exception;
 use Illuminate\Redis\Connections\PhpRedisConnection;
 
@@ -49,7 +50,7 @@ class RedisRepository
      */
     public function getHashByPattern(string | null $hash)
     {
-        return $this->removeSlugDatabaseFromRedisKeys($this->getConnection()->keys($hash));
+        return self::removeSlugDatabaseFromRedisKeys($this->getConnection()->keys($hash), $this->getRedisPrefix());
     }
 
     /**
@@ -89,7 +90,7 @@ class RedisRepository
         $result = [];
 
         $fetch = $this->getConnection()->pipeline(function ($pipe) use ($keys) {
-            foreach ($this->removeSlugDatabaseFromRedisKeys($keys) as $key) {
+            foreach (self::removeSlugDatabaseFromRedisKeys($keys, $this->getRedisPrefix()) as $key) {
                 $pipe->hGetAll($key);
             }
         });
@@ -182,19 +183,11 @@ class RedisRepository
      */
     public function insertMultipleRedisHashes(array $hashes)
     {
-        return $this->transaction(function ($redis) use ($hashes) {
-            try {
-                foreach ($hashes as $key => $data) {
-                    $redis->hMSet($key, $data);
-                }
+        foreach ($hashes as $key => $data) {
+            $this->getConnection()->hMSet($key, $data);
+        }
 
-                return true;
-            } catch (Exception $e) {
-                $transaction->discard();
-
-                return false;
-            }
-        });
+        return true;
     }
 
     /**
@@ -317,26 +310,40 @@ class RedisRepository
      *
      * @param callable $callback The closure to be executed as part of the transaction
      *
-     * @return mixed The result of the callback
+     * @return bool Returns a boolean indicating if the transaction was successful or not.
      */
     public function transaction(callable $callback)
     {
         return $this->getConnection()->transaction(function ($conTransaction) use ($callback) {
-            return $callback($conTransaction);
+            try {
+                $callback($conTransaction);
+                $result = $conTransaction->exec();
+
+                if ($result === false) {
+                    throw new ErrorTransactionException("Transaction failed to execute");
+                }
+            } catch (Exception $e) {
+                $conTransaction->discard();
+
+                return false;
+            }
         });
+
+        return true;
     }
 
     /**
      * Removes the Redis prefix from an array of keys.
      *
      * @param array $keys An array of keys with Redis prefix
+     * @param string $prefix The Redis key prefix for this model.
      *
      * @return array An array of keys with Redis prefix removed
      */
-    public function removeSlugDatabaseFromRedisKeys(array $keys)
+    public static function removeSlugDatabaseFromRedisKeys(array $keys, string $prefix)
     {
-        return array_map(function ($key) {
-            return str_replace($this->getRedisPrefix(), '', $key);
+        return array_map(function ($key) use ($prefix) {
+            return str_replace($prefix, '', $key);
         }, $keys);
     }
 }

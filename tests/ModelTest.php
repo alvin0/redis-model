@@ -2,7 +2,69 @@
 
 use Alvin0\RedisModel\Tests\Models\User;
 
+it('a user can be created without id', function ($userInput, $expect) {
+    User::destroy();
+    $user = User::create($userInput);
+
+    expect($user->name)->toEqual($expect['name']);
+    expect($user->email)->toEqual($expect['email']);
+
+})->with([
+    [
+        ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
+        ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
+    ],
+    [
+        ['name' => 'Luke Downing', 'email' => 'luke_downing@example.com'],
+        ['name' => 'Luke Downing', 'email' => 'luke_downing@example.com'],
+    ],
+    [
+        ['name' => 'Freek Van Der Herten', 'email' => 'freek_van_der@example.com'],
+        ['name' => 'Freek Van Der Herten', 'email' => 'freek_van_der@example.com'],
+    ],
+]);
+
+it('can insert multiple users without id', function ($data) {
+    User::destroy();
+
+    User::insert($data);
+
+    $users = User::get();
+    expect($users->count())->toBe(10);
+
+    foreach ($data as $userInput) {
+        $user = User::where('email', $userInput['email'])->first();
+        expect($user->id)->toBeString();
+        expect($user->name)->toEqual($userInput['name']);
+        expect($user->email)->toEqual($userInput['email']);
+    }
+
+    User::where('email', 'user1@example.com')->destroy();
+
+    $user = expect(User::count())->toBe(9);
+
+    User::destroy();
+
+    $users = User::get();
+
+    expect($users->count())->toBe(0);
+})->with([
+    function () {
+        $data = [];
+
+        for ($i = 1; $i <= 10; $i++) {
+            $data[] = [
+                'name' => 'User ' . $i,
+                'email' => 'user' . $i . '@example.com',
+            ];
+        }
+
+        return $data;
+    }
+]);
+
 it('a user can be created, updated, and deleted', function ($userInput, $expect) {
+    User::destroy();
     $user = User::create($userInput);
 
     expect($user->id)->toEqual($userInput['id']);
@@ -41,6 +103,7 @@ it('a user can be created, updated, and deleted', function ($userInput, $expect)
 ]);
 
 it('can retrieve all users', function ($setup, $clean) {
+    User::destroy();
     $setup();
 
     $users = User::all();
@@ -55,6 +118,7 @@ it('can retrieve all users', function ($setup, $clean) {
 ]);
 
 it('can retrieve a single user by ID', function ($setup, $clean) {
+    User::destroy();
     $setup();
 
     $user = User::find(1);
@@ -70,6 +134,7 @@ it('can retrieve a single user by ID', function ($setup, $clean) {
 ]);
 
 it('can retrieve users matching a given criteria', function ($setup, $clean) {
+    User::destroy();
     $setup();
 
     $users = User::where('name', 'Nuno*')->get();
@@ -89,6 +154,8 @@ it('can retrieve users matching a given criteria', function ($setup, $clean) {
 ]);
 
 it('can insert multiple users and remove all', function ($data) {
+    User::destroy();
+
     User::insert($data);
 
     $users = User::get();
@@ -123,5 +190,58 @@ it('can insert multiple users and remove all', function ($data) {
 
         return $data;
     }
-]
-);
+]);
+
+it('it can insert multiple users with transaction', function ($data) {
+    User::destroy();
+
+    User::transaction(function ($conTransaction) use ($data) {
+        User::insert($data, $conTransaction);
+    });
+
+    $users = User::get();
+    expect($users->count())->toBe(10);
+
+    User::destroy();
+})->with([
+    function () {
+        $data = [];
+
+        for ($i = 1; $i <= 10; $i++) {
+            $data[] = [
+                'name' => 'User ' . $i,
+                'email' => 'user' . $i . '@example.com',
+                'id' => $i,
+            ];
+        }
+
+        return $data;
+    }
+]);
+
+it('it cant insert multiple users with transaction', function ($data) {
+
+    User::transaction(function ($conTransaction) use ($data) {
+        User::insert($data, $conTransaction);
+        throw new \Exception('Something went wrong');
+    });
+
+    $users = User::get();
+    expect($users->count())->toBe(0);
+
+    User::destroy();
+})->with([
+    function () {
+        $data = [];
+
+        for ($i = 1; $i <= 10; $i++) {
+            $data[] = [
+                'name' => 'User ' . $i,
+                'email' => 'user' . $i . '@example.com',
+                'id' => $i,
+            ];
+        }
+
+        return $data;
+    }
+]);

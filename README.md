@@ -9,16 +9,13 @@ Redis is not the place to store complex relational data and Redis emphasizes its
 
 ### Laravel version supports
 
-| Laravel | Is Support |
+| Redis Version | Laravel version(s) |
 | :---: | :---: |
-| < 8 | No |
-| 8 | Yes |
-| 9 | Yes |
-| 10 | Yes |
+| 0.x | 8 / 9 / 10 |
 
 ### Model Supports
 
-| Function | Is Working |
+| Method | Is Working |
 | --- | :---: |
 | CURD | Yes |
 | Condition Select | Yes |
@@ -26,7 +23,7 @@ Redis is not the place to store complex relational data and Redis emphasizes its
 | Transaction | Yes |
 | Insert a lot of data | Yes |
 | Delete a lot of data | Yes |
-| Update a lot of data | comming soon |
+| Update a lot of data | Think.. |
 | Relationship | No |
 
 ### Key structure
@@ -74,9 +71,43 @@ php artisan redis-model:model User
 ## Model Conventions
 ### Primary Keys, Sub-Keys And Fillable
 
-Primary Keys are properties that are not assigned by default, and they determine the search behavior of the model. Make sure that the values of primary keys are unique to avoid confusion when retrieving data based on conditions.
+The primary key is an attribute assigned by default by uuid, and they determine the search behavior of the model. 
+Make sure that the values of primary keys are unique to avoid confusion when retrieving data based on conditions.
 Sub keys are keys that can be duplicated, and they will help you search using the where method in the model.
-To declare attributes for a model, you need to declare them in the $fillable variable. You should also declare the primary key and subkeys in this variable.
+To declare attributes for a model, you need to declare them in the `fillable` variable. You should also declare the `primaryKey` and `subKeys` in this variable.
+
+> 
+```php
+use Alvin0\RedisModel\Model;
+
+class User extends Model {
+
+    /**
+     * The model's sub keys for the model.
+     *
+     * @var array
+     */
+    protected $subKeys = [
+        'name',
+        'role',
+    ];
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<string>
+     */
+    protected $fillable = [
+            'id',
+            'email',
+            'name',
+            'role',
+            'address'
+    ];
+}
+```
+
+> If possible, please turn off the automatic UUID generation feature for model keys and choose keys for data to ensure easy data search with keys. Make sure the primary key is unique for the model.
 
 ```php
 use Alvin0\RedisModel\Model;
@@ -88,6 +119,13 @@ class User extends Model {
      * @var bool
      */
     protected $primaryKey = 'email';
+    
+    /**
+     * Indicates if the IDs are auto-incrementing.
+     *
+     * @var bool
+     */
+    public $incrementing = false;
 
     /**
      * The model's sub keys for the model.
@@ -112,6 +150,7 @@ class User extends Model {
     ];
 }
 ```
+
 ### Table Names
 So, in this case, RedisModel will assume the `User` model stores records in the `users` table.
 
@@ -306,8 +345,7 @@ $user->email //email@gmail.com
 ```
 
 ### Insert Statements
-To solve the issue of inserting multiple items into a table, you can use the inserts function. It will perform the insert within a transaction to ensure a rollback in case of errors that you may not be aware of. It is recommended to use array chunk to ensure performance.
-
+To solve the issue of inserting multiple items into a table, you can use the inserts function. It is recommended to use array chunk to ensure performance.
 ```php
 use App\RedisModels\User;
 use Illuminate\Support\Facades\Hash;
@@ -328,6 +366,31 @@ $seed = function ($limit) {
 };
 
 User::insert($seed(10));
+```
+
+> I think you should use the transaction method to ensure that your data will be rolled back if an error occurs during the process of inserting multiple data.
+```php
+use App\RedisModels\User;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+
+$seed = function ($limit) {
+    $users = [];
+    for ($i = 0; $i < $limit; $i++) {
+        $users[] = [
+            'email' => Str::random(10) . '@gmail.com',
+            'name' => Str::random(8),
+            'token' => md5(Str::random(10)),
+            'expire_at' => now(),
+        ];
+    }
+
+    return $users;
+};
+
+User::transaction(function ($conTransaction) use ($data) {
+    User::insert($seed(10), $conTransaction);
+});
 ```
 
 ### Update Model
@@ -383,4 +446,44 @@ $user = User::find('email@gmail.com')->setExpire(60); // The instance will have 
 use App\RedisModels\User;
 
 $user = User::find('email@gmail.com')->getExpire(); // The remaining time to live of the instance is 39 seconds.
+```
+
+### Transaction
+
+The Redis model's transaction method provides a convenient wrapper around Redis' native `MULTI` and `EXEC` commands. The transaction method accepts a closure as its only argument. This closure will receive a Redis connection instance and may issue any commands it would like to this instance. All of the Redis commands issued within the closure will be executed in a single, atomic transaction:
+
+> When defining a Redis transaction, you may not retrieve any values from the Redis connection. Remember, your transaction is executed as a single, atomic operation and that operation is not executed until your entire closure has finished executing its commands.
+
+```php
+use App\RedisModels\User;
+use Redis;
+
+$data [
+    'users:id:1:email:email@example:name:alvin:role:admin' => [
+        'id' => 1,
+        'email'=>'email@example'
+        'name' => 'alvin',
+        'role'=>'admin'
+    ]
+    'users:id:2:email:email@example:name:alvin:role:admin' => [
+        'id' => 2,
+        'email'=>'email@example'
+        'name' => 'alvin',
+        'role'=>'admin'
+    ]
+    'users:id:3:email:email@example:name:alvin:role:admin' => [
+        'id' => 3,
+        'email'=>'email@example'
+        'name' => 'alvin',
+        'role'=>'admin'
+    ]
+];
+
+$user = User::transaction(function (Redis $conTransaction) use($data) {
+    foreach($data as $key => $value) {
+        $conTransaction->hMSet($key, $value);
+    }
+    // $conTransaction->discard(); 
+});
+
 ```

@@ -15,10 +15,12 @@ use Illuminate\Database\Eloquent\Concerns\HasTimestamps;
 use Illuminate\Database\Eloquent\Concerns\HidesAttributes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Redis as RedisFacade;
 use Illuminate\Support\Str;
 use Illuminate\Support\Traits\ForwardsCalls;
 use JsonSerializable;
+use Redis;
+use ReflectionClass;
 
 abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializable, CanBeEscapedWhenCastToString
 {
@@ -68,7 +70,14 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
      *
      * @var string
      */
-    protected $primaryKey = null;
+    protected $primaryKey = 'id';
+
+    /**
+     * The "type" of the primary key ID.
+     *
+     * @var string
+     */
+    protected $keyType = 'string';
 
     /**
      * The model's sub keys for the model.
@@ -103,7 +112,7 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
      *
      * @var bool
      */
-    public $incrementing = false;
+    public $incrementing = true;
 
     /**
      * Allow undeclared fillable to appear in the model.
@@ -339,11 +348,31 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
     public function setConnection(string $connectionName)
     {
         try {
-            $this->connection = Redis::connection($connectionName);
+            $this->connection = RedisFacade::connection($connectionName);
             $this->setPrefixConnector();
         } catch (Exception $e) {
             throw new ErrorConnectToRedisException($e->getMessage());
         }
+
+        return $this;
+    }
+
+    /**
+     * Join a Redis transaction with the current connection.
+     *
+     * @param Redis $connection
+     *
+     * @return $this
+     */
+    public function joinTransaction(Redis $clientTransaction)
+    {
+        tap($this->connection, function ($connect) use ($clientTransaction) {
+            $reflectionClass = new ReflectionClass(\get_class($connect));
+            $client = $reflectionClass->getProperty('client');
+            $client->setAccessible(true);
+            $client->setValue($connect, $clientTransaction);
+            $this->connection = $connect;
+        });
 
         return $this;
     }
@@ -517,6 +546,10 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
             $this->updateTimestamps();
         }
 
+        if ($this->getIncrementing() && $this->getKeyType() && $this->getKey() == null) {
+            $this->setKey(Str::uuid());
+        }
+
         if (!$this->isPrioritizeForceSave()) {
             if ($this->getPreventCreateForce() && $this->isKeyExist()) {
                 throw new KeyExistException(
@@ -524,10 +557,6 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
                 );
             }
         }
-
-        // if ($this->usesUniqueIds()) {
-        //     $this->setUniqueIds();
-        // }
 
         // If the model has an incrementing key, we can use the "insertGetId" method on
         // the query builder, which will give us back the final inserted ID for this
@@ -538,9 +567,6 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
             return true;
         }
 
-        // if ($this->getIncrementing()) {
-        //     $this->insertAndSetId($attributes);
-        // }
         if ($this->isValidationKeyAndSubKeys($attributes)) {
             $attributes = collect($attributes)->map(function ($item, $key) {
                 // Cast the attribute if necessary
@@ -569,6 +595,12 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
         return true;
     }
 
+    /**
+     * Deletes the current model from Redis if the primary key and sub-keys are valid.
+     * If the delete operation is successful, it returns true. Otherwise, it returns false.
+     *
+     * @return bool Returns true if the deletion is successful; otherwise, false.
+     */
     public function performDeleteOnModel()
     {
         if ($this->isValidationKeyAndSubKeys($this->getOriginal())) {
@@ -588,16 +620,25 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
      * Inserts multiple data into Redis hashes.
      *
      * @param array $dataInsert An array of data to insert into Redis hashes.
+     * @param Redis $hasTransaction a redis client.
      *
      * @return mixed Returns the result of inserting multiple Redis hashes, or false if the data is invalid.
      */
-    public static function insert(array $dataInsert)
+    public static function insert(array $dataInsert, Redis $hasTransaction = null)
     {
         $inserts = [];
         $build = static::query();
         $model = $build->getModel();
 
+        if ($hasTransaction) {
+            $model->joinTransaction($hasTransaction);
+        }
+
         foreach ($dataInsert as $attributes) {
+            if ($model->getIncrementing() && $model->getKeyType() && !isset($attributes[$model->getKeyName()])) {
+                $attributes[$model->getKeyName()] = Str::uuid();
+            }
+
             if ($model->isValidationKeyAndSubKeys($attributes)) {
                 $key = $build->compileHashByFields($attributes);
 
@@ -749,6 +790,20 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
     }
 
     /**
+     * Run a transaction with the given callback.
+     *
+     * @param callable $callback
+     *
+     * @return mixed The result of the callback
+     */
+    public static function transaction(callable $callback)
+    {
+        $build = static::query();
+
+        return $build->getRepository()->transaction($callback);
+    }
+
+    /**
      * Get a new query builder for the model's table.
      *
      * @return \Alvin0\RedisModel\Builder
@@ -774,9 +829,10 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
      *
      * @param  array  $attributes
      * @param  bool  $exists
+     * @param  string  $redisKey
      * @return static
      */
-    public function newInstance($attributes = [], $exists = false, $redisKey = null)
+    public function newInstance($attributes = [], $exists = false, string $redisKey = null)
     {
         // This method just provides a convenient way for us to generate fresh model
         // instances of this current model. It is particularly useful during the
@@ -788,8 +844,6 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
         $model->redisKey = $redisKey;
 
         $this->setDateFormat("Y-m-d\\TH:i:sP");
-
-        $model->setConnection($this->getConnectionName());
 
         $model->setTable($this->getTable());
 
@@ -966,7 +1020,7 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
     {
     }
 
-   /**
+    /**
      * Determine if the given attribute exists.
      *
      * @param  mixed  $offset
@@ -975,7 +1029,7 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
     public function offsetExists($offset): bool
     {
         try {
-            return ! is_null($this->getAttribute($offset));
+            return null === $this->getAttribute($offset);
         } catch (MissingAttributeException) {
             return false;
         }
