@@ -1,14 +1,17 @@
 <?php
 
 use Alvin0\RedisModel\Tests\Models\User;
+use Illuminate\Support\Facades\Redis;
+
+beforeEach(function () {
+    Redis::flushall();
+});
 
 it('a user can be created without id', function ($userInput, $expect) {
-    User::destroy();
     $user = User::create($userInput);
 
     expect($user->name)->toEqual($expect['name']);
     expect($user->email)->toEqual($expect['email']);
-
 })->with([
     [
         ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
@@ -25,29 +28,10 @@ it('a user can be created without id', function ($userInput, $expect) {
 ]);
 
 it('can insert multiple users without id', function ($data) {
-    User::destroy();
-
     User::insert($data);
 
     $users = User::get();
     expect($users->count())->toBe(10);
-
-    foreach ($data as $userInput) {
-        $user = User::where('email', $userInput['email'])->first();
-        expect($user->id)->toBeString();
-        expect($user->name)->toEqual($userInput['name']);
-        expect($user->email)->toEqual($userInput['email']);
-    }
-
-    User::where('email', 'user1@example.com')->destroy();
-
-    $user = expect(User::count())->toBe(9);
-
-    User::destroy();
-
-    $users = User::get();
-
-    expect($users->count())->toBe(0);
 })->with([
     function () {
         $data = [];
@@ -63,11 +47,43 @@ it('can insert multiple users without id', function ($data) {
     }
 ]);
 
-it('a user can be created, updated, and deleted', function ($userInput, $expect) {
-    User::destroy();
+it('a user can be force created', function ($userInput, $expect) {
     $user = User::create($userInput);
 
-    expect($user->id)->toEqual($userInput['id']);
+    expect($user->name)->toEqual($expect['name']);
+    expect($user->email)->toEqual($expect['email']);
+
+    expect(User::count())->toBe(1);
+
+    $userForceCreate = User::forceCreate([
+        'id' => $user->id,
+        'name' => $user->name,
+        'email' => $user->email,
+    ]);
+
+    expect($userForceCreate->id)->toEqual($user['id']);
+    expect($userForceCreate->name)->toEqual($user['name']);
+    expect($userForceCreate->email)->toEqual($user['email']);
+
+    expect(User::count())->toBe(1);
+})->with([
+    [
+        ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
+        ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
+    ],
+    [
+        ['name' => 'Luke Downing', 'email' => 'luke_downing@example.com'],
+        ['name' => 'Luke Downing', 'email' => 'luke_downing@example.com'],
+    ],
+    [
+        ['name' => 'Freek Van Der Herten', 'email' => 'freek_van_der@example.com'],
+        ['name' => 'Freek Van Der Herten', 'email' => 'freek_van_der@example.com'],
+    ],
+]);
+
+it('a user can be created, updated, and deleted', function ($userInput, $expect) {
+    $user = User::create($userInput);
+
     expect($user->name)->toEqual($expect['name']);
     expect($user->email)->toEqual($expect['email']);
 
@@ -89,73 +105,80 @@ it('a user can be created, updated, and deleted', function ($userInput, $expect)
     expect($deletedUser)->toBeNull();
 })->with([
     [
-        ['id' => 1, 'name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
+        ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
         ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
     ],
     [
-        ['id' => 2, 'name' => 'Luke Downing', 'email' => 'luke_downing@example.com'],
+        ['name' => 'Luke Downing', 'email' => 'luke_downing@example.com'],
         ['name' => 'Luke Downing', 'email' => 'luke_downing@example.com'],
     ],
     [
-        ['id' => 3, 'name' => 'Freek Van Der Herten', 'email' => 'freek_van_der@example.com'],
+        ['name' => 'Freek Van Der Herten', 'email' => 'freek_van_der@example.com'],
         ['name' => 'Freek Van Der Herten', 'email' => 'freek_van_der@example.com'],
     ],
 ]);
 
-it('can retrieve all users', function ($setup, $clean) {
-    User::destroy();
-    $setup();
-
-    $users = User::all();
-    expect($users->count())->toBeGreaterThan(0);
-
-    $clean();
+it('can retrieve all users', function ($setup) {
+    expect(User::all()->count())->toBeGreaterThan(0);
 })->with([
     [
+        function () {
+            $data = [];
+
+            for ($i = 1; $i <= 10; $i++) {
+                $data[] = [
+                    'name' => 'User ' . $i,
+                    'email' => 'user' . $i . '@example.com',
+                ];
+            }
+
+            return User::insert($data);
+        }
+    ],
+    [
         fn() => User::create(['id' => 1, 'name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com']),
-        fn() => User::find(1)->delete(),
     ],
 ]);
 
-it('can retrieve a single user by ID', function ($setup, $clean) {
-    User::destroy();
-    $setup();
+it('can retrieve a single user by ID', function ($createData, $expect) {
+    $createData();
 
     $user = User::find(1);
-    expect($user->name)->toEqual('Nuno Maduro');
-    expect($user->email)->toEqual('nuno_naduro@example.com');
-
-    $clean();
+    expect($user->name)->toEqual($expect['name']);
+    expect($user->email)->toEqual($expect['email']);
 })->with([
     [
         fn() => User::create(['id' => 1, 'name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com']),
-        fn() => User::find(1)->delete(),
+        ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
+    ],
+    [
+        fn() => User::create(['id' => 1, 'name' => 'Nuno Madurop', 'email' => 'nuno_nadurop@example.com']),
+        ['name' => 'Nuno Madurop', 'email' => 'nuno_nadurop@example.com'],
     ],
 ]);
 
-it('can retrieve users matching a given criteria', function ($setup, $clean) {
-    User::destroy();
-    $setup();
+it('can retrieve users matching a given criteria', function ($createData, $expect) {
+    $createData();
 
     $users = User::where('name', 'Nuno*')->get();
     expect($users->count())->toBeGreaterThan(0);
 
     foreach ($users as $user) {
-        expect($user->name)->toContain('Nuno Maduro');
-        expect($user->email)->toContain('nuno_naduro@example.com');
+        expect($user->name)->toContain($expect['name']);
+        expect($user->email)->toContain($expect['email']);
     }
-
-    $clean();
 })->with([
     [
         fn() => User::create(['id' => 1, 'name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com']),
-        fn() => User::find(1)->delete(),
+        ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
+    ],
+    [
+        fn() => User::create(['id' => 1, 'name' => 'Nuno Madurop', 'email' => 'nuno_nadurop@example.com']),
+        ['name' => 'Nuno Madurop', 'email' => 'nuno_nadurop@example.com'],
     ],
 ]);
 
-it('can insert multiple users and remove all', function ($data) {
-    User::destroy();
-
+it('can insert multiple users', function ($data) {
     User::insert($data);
 
     $users = User::get();
@@ -167,15 +190,37 @@ it('can insert multiple users and remove all', function ($data) {
         expect($user->name)->toEqual($userInput['name']);
         expect($user->email)->toEqual($userInput['email']);
     }
+})->with([
+    function () {
+        $data = [];
 
-    User::where('email', 'user1@example.com')->destroy();
+        for ($i = 1; $i <= 10; $i++) {
+            $data[] = [
+                'name' => 'User ' . $i,
+                'email' => 'user' . $i . '@example.com',
+                'id' => $i,
+            ];
+        }
 
-    expect(User::count())->toBe(9);
+        return $data;
+    }
+]);
+
+it('can remove multiple users', function ($data) {
+    User::insert($data);
+
+    $users = User::get();
+    expect($users->count())->toBe(10);
+
+    User::where('email', 'user' . rand(1, 3) . '@example.com')->destroy();
+    User::where('email', 'user' . rand(4, 6) . '@example.com')->destroy();
+    User::where('email', 'user' . rand(7, 10) . '@example.com')->destroy();
+
+    expect(User::count())->toBe(7);
 
     User::destroy();
 
-    $users = User::get();
-    expect($users->count())->toBe(0);
+    expect(User::get()->count())->toBe(0);
 })->with([
     function () {
         $data = [];
@@ -193,16 +238,11 @@ it('can insert multiple users and remove all', function ($data) {
 ]);
 
 it('it can insert multiple users with transaction', function ($data) {
-    User::destroy();
-
     User::transaction(function ($conTransaction) use ($data) {
         User::insert($data, $conTransaction);
     });
 
-    $users = User::get();
-    expect($users->count())->toBe(10);
-
-    User::destroy();
+    expect(User::get()->count())->toBe(10);
 })->with([
     function () {
         $data = [];
@@ -220,16 +260,13 @@ it('it can insert multiple users with transaction', function ($data) {
 ]);
 
 it('it cant insert multiple users with transaction', function ($data) {
-
     User::transaction(function ($conTransaction) use ($data) {
         User::insert($data, $conTransaction);
+
         throw new \Exception('Something went wrong');
     });
 
-    $users = User::get();
-    expect($users->count())->toBe(0);
-
-    User::destroy();
+    expect(User::get()->count())->toBe(0);
 })->with([
     function () {
         $data = [];
