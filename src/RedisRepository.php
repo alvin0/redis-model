@@ -255,8 +255,10 @@ class RedisRepository
                 'match' => $this->getRedisPrefix() . $keyPattern,
                 'count' => $take,
             ]);
-            $keys = array_merge($keys, $result);
-            if (sizeof($keys) > $take) {
+
+            $keys = array_merge($keys, ($result ?? []));
+
+            if (sizeof($keys) > $take || $cursor == null) {
                 break;
             }
         } while ($cursor != '0');
@@ -285,21 +287,28 @@ class RedisRepository
      */
     public function scanByHash(string $keyHash, int $limit, callable $callback)
     {
-        $cursor = 0;
-        $scan = ['cursorNext' => 0, 'isNext' => false, 'keyResultRemaining' => []];
+        $amountOfDataCommit = $this->countByPattern($keyHash);
 
-        do {
-            $scan = $this->guaranteedScan($keyHash, $limit, $cursor, $scan['keyResultRemaining'] ?? []);
+        //Check the total amount of data that can be retrieved with the hash pattern
+        if ($amountOfDataCommit == 0) {
+            call_user_func_array($callback, [[], false]);
+        } else {
+            $cursor = 0;
+            $scan = ['cursorNext' => 0, 'isNext' => false, 'keyResultRemaining' => []];
 
-            call_user_func_array($callback, [$scan['keys'], $scan['isNext']]);
-            $cursor = $scan['cursorNext'];
-        } while ($scan['isNext']);
+            do {
+                $scan = $this->guaranteedScan($keyHash, $limit, $cursor, $scan['keyResultRemaining'] ?? []);
 
-        // This will ensure that no callback function is missed with remaining data
-        // because when the guaranteedScan function notifies that the cursor has been fully iterated,
-        // the loop controlled by the while statement will stop and skip any remaining data.
-        if ($scan['cursorNext'] === 0 && $scan['isNext'] === false && !empty($scan['keyResultRemaining'])) {
-            call_user_func_array($callback, [$scan['keyResultRemaining'], false]);
+                call_user_func_array($callback, [$scan['keys'], $scan['isNext']]);
+                $cursor = $scan['cursorNext'];
+            } while ($scan['isNext']);
+
+            // This will ensure that no callback function is missed with remaining data
+            // because when the guaranteedScan function notifies that the cursor has been fully iterated,
+            // the loop controlled by the while statement will stop and skip any remaining data.
+            if ($scan['cursorNext'] === 0 && $scan['isNext'] === false && !empty($scan['keyResultRemaining'])) {
+                call_user_func_array($callback, [$scan['keyResultRemaining'], false]);
+            }
         }
 
         return true;
