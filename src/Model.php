@@ -516,8 +516,8 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
                     return (string) $item;
                 })->toArray();
 
-                $keyOrigin = $build->compileHashByFields($this->getOriginal());
-                $keyNew = $build->compileHashByFields($attributes);
+                $keyOrigin = $build->compileHashByFields($this->parseAttributeKeyBooleanToInt(($this->getOriginal())));
+                $keyNew = $build->compileHashByFields($this->parseAttributeKeyBooleanToInt($attributes));
                 $build->getRepository()->updateRedisHashes($keyOrigin, $attributes, $keyNew);
 
                 $this->exists = true;
@@ -580,7 +580,7 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
                 return (string) $item;
             })->toArray();
 
-            $keyInsert = $build->compileHashByFields($attributes);
+            $keyInsert = $build->compileHashByFields($this->parseAttributeKeyBooleanToInt($attributes));
             $build->getRepository()->insertRedisHashes($keyInsert, $attributes);
         } else {
             throw new RedisModelException("Primary key and sub key values are required");
@@ -1182,12 +1182,30 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
     protected function isValidationKeyAndSubKeys($attributes)
     {
         $listKey = array_merge([$this->getKeyName()], $this->getSubKeys());
+
         foreach ($listKey as $key) {
-            if (!isset($attributes[$key]) || empty($attributes[$key])) {
+            if (!isset($attributes[$key]) ||
+                (isset($this->getCasts()[$key]) && $this->getCasts()[$key] != 'boolean' && empty($attributes[$key]))) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * @param array $value
+     *
+     * @return int
+     */
+    private function parseAttributeKeyBooleanToInt($attributes)
+    {
+        foreach ($attributes as $key => $value) {
+            if (isset($this->getCasts()[$key]) && $this->getCasts()[$key] == 'boolean') {
+                $attributes[$key] = (int) filter_var($value, FILTER_VALIDATE_BOOLEAN);
+            }
+        }
+
+        return $attributes;
     }
 }
