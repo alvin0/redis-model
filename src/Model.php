@@ -846,9 +846,10 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
      * @param  array  $attributes
      * @param  bool  $exists
      * @param  string  $redisKey
+     * @param  bool  $isCastAttribute
      * @return static
      */
-    public function newInstance($attributes = [], $exists = false, string $redisKey = null)
+    public function newInstance($attributes = [], $exists = false, string $redisKey = null, $isCastAttribute = false)
     {
         // This method just provides a convenient way for us to generate fresh model
         // instances of this current model. It is particularly useful during the
@@ -865,7 +866,15 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
 
         $model->mergeCasts($this->casts);
 
-        $model->fill((array) $attributes);
+        if ($isCastAttribute) {
+            $castAttributes = collect($attributes)->mapWithKeys(function ($value, $key) use ($model) {
+                return [$key => $model->transformModelValue($key, $value)];
+            })->all();
+    
+            $model->fill((array) $castAttributes);
+        } else {
+            $model->fill((array) $attributes);
+        }
 
         return $model;
     }

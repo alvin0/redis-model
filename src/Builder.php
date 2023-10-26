@@ -210,7 +210,7 @@ class Builder
         $models = [];
 
         foreach ($this->getRepository()->fetchHashDataByPattern($this->getHashPattern()) as $hash => $attributes) {
-            $models[] = $this->model->newInstance($attributes, true, $hash)->syncOriginal();
+            $models[] = $this->model->newInstance($attributes, true, $hash, true)->syncOriginal();
         }
 
         return $this->getModel()->newCollection($models);
@@ -321,7 +321,7 @@ class Builder
                     // Fetch the attributes of the models in the current chunk, and create new model instances with
                     // these attributes
                     foreach ($this->getRepository()->fetchProperByListHash($keys) as $hash => $attributes) {
-                        $modelsChunk[] = $this->model->newInstance($attributes, true, $hash)->syncOriginal();
+                        $modelsChunk[] = $this->model->newInstance($attributes, true, $hash, true)->syncOriginal();
                     }
 
                     $resultData->push($modelsChunk);
