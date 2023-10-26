@@ -513,6 +513,10 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
                         $item = $item->format($this->getDateFormat());
                     } elseif (is_array($item)) {
                         $item = json_encode($item);
+                    } elseif (is_bool($item)) {
+                        $item = (int)filter_var($item, FILTER_VALIDATE_BOOLEAN);
+                    } elseif ($this->isEnumCastable($key)) {
+                        $item = $item->value;
                     }
 
                     return (string) $item;
@@ -579,6 +583,10 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
                     $item = $item->format($this->getDateFormat());
                 } elseif (is_array($item)) {
                     $item = json_encode($item);
+                } elseif (is_bool($item)) {
+                    $item = (int)filter_var($item, FILTER_VALIDATE_BOOLEAN);
+                } elseif ($this->isEnumCastable($key)) {
+                    $item = $item->value;
                 }
 
                 return (string) $item;
@@ -661,6 +669,10 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
                         $item = $item->format($model->getDateFormat());
                     } elseif (is_array($item)) {
                         $item = json_encode($item);
+                    } elseif (is_bool($item)) {
+                        $item = (int)filter_var($item, FILTER_VALIDATE_BOOLEAN);
+                    } elseif ($this->isEnumCastable($key)) {
+                        $item = $item->value;
                     }
 
                     return (string) $item;
