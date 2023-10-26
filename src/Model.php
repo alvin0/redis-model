@@ -511,6 +511,8 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
                     // If the attribute is a Carbon instance, format it using the model's date format
                     if ($item instanceof Carbon) {
                         $item = $item->format($this->getDateFormat());
+                    } elseif (is_array($item)) {
+                        $item = json_encode($item);
                     }
 
                     return (string) $item;
@@ -575,14 +577,8 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
                 // If the attribute is a Carbon instance, format it using the model's date format
                 if ($item instanceof Carbon) {
                     $item = $item->format($this->getDateFormat());
-                }
-
-                if (is_array($item)) {
+                } elseif (is_array($item)) {
                     $item = json_encode($item);
-                }
-
-                if (is_bool($item)) {
-                    $item = (int) filter_var($item, FILTER_VALIDATE_BOOLEAN);
                 }
 
                 return (string) $item;
@@ -663,14 +659,8 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
                     // If the attribute is a Carbon instance, format it using the model's date format
                     if ($item instanceof Carbon) {
                         $item = $item->format($model->getDateFormat());
-                    }
-
-                    if (is_array($item)) {
+                    } elseif (is_array($item)) {
                         $item = json_encode($item);
-                    }
-
-                    if (is_bool($item)) {
-                        $item = (int) filter_var($item, FILTER_VALIDATE_BOOLEAN);
                     }
 
                     return (string) $item;

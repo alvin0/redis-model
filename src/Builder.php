@@ -359,7 +359,9 @@ class Builder
         $stringKey = '';
 
         foreach ($listKey as $key) {
-            $stringKey .= $key . ':' . ($attributes[$key] ?? "*") . ':';
+            $attributeValue = $attributes[$key] ?? '*';
+            $attributeValue = is_string($attributeValue) ? $attributeValue : json_encode($attributeValue);
+            $stringKey .= $key . ':' . $attributeValue . ':';
         }
 
         return $this->model->getTable() . ":" . rtrim($stringKey, ':');
