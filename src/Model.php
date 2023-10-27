@@ -505,15 +505,7 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
             $attributes = $this->getAttributesForInsert();
             if ($this->isValidationKeyAndSubKeys($attributes)) {
                 $attributes = collect($attributes)->map(function ($item, $key) {
-                    // Cast the attribute if necessary
-                    $item = $this->hasCast($key) ? $this->castAttribute($key, $item) : $item;
-
-                    // If the attribute is a Carbon instance, format it using the model's date format
-                    if ($item instanceof Carbon) {
-                        $item = $item->format($this->getDateFormat());
-                    }
-
-                    return (string) $item;
+                    return (string) $this->castAttributeBeforeSave($key, $item);
                 })->toArray();
 
                 $keyOrigin = $build->compileHashByFields($this->parseAttributeKeyBooleanToInt(($this->getOriginal())));
@@ -530,6 +522,42 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
         }
 
         return false;
+    }
+
+    /**
+     * Casts and prepares an attribute value before saving it to the database.
+     *
+     * @param string $key 
+     * @param mixed $value
+     *
+     * @return mixed The 
+     */
+    protected function castAttributeBeforeSave($key, $value) {
+        // Cast the attribute if necessary
+        $value = $this->hasCast($key) ? $this->castAttribute($key, $value) : $value;
+
+        // If the attribute is a Carbon instance, format it using the model's date format
+        if ($value instanceof Carbon) {
+            $value = $value->format($this->getDateFormat());
+        }
+    
+        // If the attribute is an array, encode it to JSON
+        if (is_array($value)) {
+            $value = json_encode($value);
+        }
+    
+        // If the attribute is a boolean, cast it to an integer
+        if (is_bool($value)) {
+            $value = (int) filter_var($value, FILTER_VALIDATE_BOOLEAN);
+        }
+    
+        // If the attribute is enum castable, extract its value
+        if ($this->isEnumCastable($key)) {
+            $value = $value->value;
+        }
+
+        // Return the transformed and casted attribute value
+        return $value;
     }
 
     /**
@@ -569,23 +597,7 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
 
         if ($this->isValidationKeyAndSubKeys($attributes)) {
             $attributes = collect($attributes)->map(function ($item, $key) {
-                // Cast the attribute if necessary
-                $item = $this->hasCast($key) ? $this->castAttribute($key, $item) : $item;
-
-                // If the attribute is a Carbon instance, format it using the model's date format
-                if ($item instanceof Carbon) {
-                    $item = $item->format($this->getDateFormat());
-                }
-
-                if (is_array($item)) {
-                    $item = json_encode($item);
-                }
-
-                if (is_bool($item)) {
-                    $item = (int) filter_var($item, FILTER_VALIDATE_BOOLEAN);
-                }
-
-                return (string) $item;
+                return (string) $this->castAttributeBeforeSave($key, $item);
             })->toArray();
 
             $keyInsert = $build->compileHashByFields($this->parseAttributeKeyBooleanToInt($attributes));
@@ -657,23 +669,7 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
                 }
 
                 $inserts[$key] = collect($attributes)->map(function ($item, $key) use ($model) {
-                    // Cast the attribute if necessary
-                    $item = $model->hasCast($key) ? $model->castAttribute($key, $item) : $item;
-
-                    // If the attribute is a Carbon instance, format it using the model's date format
-                    if ($item instanceof Carbon) {
-                        $item = $item->format($model->getDateFormat());
-                    }
-
-                    if (is_array($item)) {
-                        $item = json_encode($item);
-                    }
-
-                    if (is_bool($item)) {
-                        $item = (int) filter_var($item, FILTER_VALIDATE_BOOLEAN);
-                    }
-
-                    return (string) $item;
+                    return (string) $this->castAttributeBeforeSave($key, $item);
                 })->toArray();
             } else {
                 return false;
