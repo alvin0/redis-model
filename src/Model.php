@@ -5,6 +5,9 @@ namespace Alvin0\RedisModel;
 
 use Alvin0\RedisModel\Exceptions\KeyExistException;
 use Alvin0\RedisModel\Exceptions\RedisModelException;
+use Alvin0\RedisModel\Exceptions\MassAssignmentException;
+use Alvin0\RedisModel\Exceptions\ErrorConnectToRedisException;
+use Alvin0\RedisModel\Exceptions\MissingAttributeException;
 use ArrayAccess;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Contracts\Support\CanBeEscapedWhenCastToString;
