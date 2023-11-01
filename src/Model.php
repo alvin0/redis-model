@@ -535,7 +535,7 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
      *
      * @return mixed The 
      */
-    protected function castAttributeBeforeSave($key, $value) {
+    public function castAttributeBeforeSave($key, $value) {
         // Cast the attribute if necessary
         $value = $this->hasCast($key) ? $this->castAttribute($key, $value) : $value;
 
