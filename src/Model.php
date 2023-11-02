@@ -672,7 +672,7 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
                 }
 
                 $inserts[$key] = collect($attributes)->map(function ($item, $key) use ($model) {
-                    return (string) $this->castAttributeBeforeSave($key, $item);
+                    return (string) $model->castAttributeBeforeSave($key, $item);
                 })->toArray();
             } else {
                 return false;
