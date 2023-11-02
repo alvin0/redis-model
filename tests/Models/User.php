@@ -3,6 +3,11 @@ namespace Alvin0\RedisModel\Tests\Models;
 
 use Alvin0\RedisModel\Model;
 
+/**
+ * @property $id
+ * @property $email
+ * @property $name
+ */
 class User extends Model
 {
     /**
