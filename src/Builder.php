@@ -360,8 +360,7 @@ class Builder
 
         foreach ($listKey as $key) {
             $attributeValue = $attributes[$key] ?? '*';
-            $attributeValue = is_string($attributeValue) ? $attributeValue : json_encode($attributeValue);
-            $stringKey .= $key . ':' . $attributeValue . ':';
+            $stringKey .= $key . ':' . ($attributeValue === '*' ? '*' : $this->model->castAttributeBeforeSave($key, $attributeValue)) . ':';
         }
 
         return $this->model->getTable() . ":" . rtrim($stringKey, ':');

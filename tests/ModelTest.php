@@ -9,7 +9,6 @@ beforeEach(function () {
 
 it('a user can be created without id', function ($userInput, $expect) {
     $user = User::create($userInput);
-
     expect($user->name)->toEqual($expect['name']);
     expect($user->email)->toEqual($expect['email']);
 })->with([
@@ -28,6 +27,7 @@ it('a user can be created without id', function ($userInput, $expect) {
 ]);
 
 it('can insert multiple users without id', function ($data) {
+
     User::insert($data);
 
     $users = User::get();
@@ -118,7 +118,7 @@ it('a user can be created, updated, and deleted', function ($userInput, $expect)
     ],
 ]);
 
-it('can retrieve all users', function ($setup) {
+it('can retrieve all users', function () {
     expect(User::all()->count())->toBeGreaterThan(0);
 })->with([
     [
@@ -140,10 +140,9 @@ it('can retrieve all users', function ($setup) {
     ],
 ]);
 
-it('can retrieve a single user by ID', function ($createData, $expect) {
-    $createData();
-
+it('can retrieve a single user by ID', function ($expect) {
     $user = User::find(1);
+
     expect($user->name)->toEqual($expect['name']);
     expect($user->email)->toEqual($expect['email']);
 })->with([
@@ -157,9 +156,7 @@ it('can retrieve a single user by ID', function ($createData, $expect) {
     ],
 ]);
 
-it('can retrieve users matching a given criteria', function ($createData, $expect) {
-    $createData();
-
+it('can retrieve users matching a given criteria', function ($expect) {
     $users = User::where('name', 'Nuno*')->get();
     expect($users->count())->toBeGreaterThan(0);
 
@@ -281,4 +278,95 @@ it('it cant insert multiple users with transaction', function ($data) {
 
         return $data;
     }
+]);
+
+it('can retrieve users by email', function () {
+    $users = User::query()->where('email', 'nuno_naduro@example.com')->get();
+
+    expect(2)->toEqual($users->count());
+})->with([
+    [
+        fn() => User::insert([
+            ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
+            ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
+            ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.net'],
+        ]),
+    ],
+    [
+        fn() => User::insert([
+            ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.net'],
+            ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
+            ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
+        ]),
+    ]
+]);
+
+it('can create user assigning model property values', function ($userData, $expected) {
+    $user = User::query()->where('email', 'nuno_naduro@example.com')->first();
+
+    expect($expected['name'])->toEqual($user->name);
+    expect($expected['email'])->toEqual($user->email);
+})->with([
+    [
+        function () {
+            $user = new User;
+            $user->name = 'Nuno Maduro';
+            $user->email = 'nuno_naduro@example.com';
+            $user->save();
+        },
+        ['name' => 'Nuno Maduro', 'email' => 'nuno_naduro@example.com'],
+    ]
+]);
+
+it('can update user subKey without duplication', function () {
+    expect(1)->toEqual(User::query()->count());
+})->with([
+    [
+        function () {
+            $user = new User;
+            $user->name = 'Nuno Maduro';
+            $user->email = 'nuno_naduro@example.com';
+            $user->save();
+            $user->email = 'nuno_naduro@example.net';
+            $user->save();
+        },
+    ],
+    [
+        function () {
+            $user = new User;
+            $user->name = 'Nuno Maduro';
+            $user->email = 'nuno_naduro@example.com';
+            $user->save();
+            $user->name = 'Nuno';
+            $user->email = 'nuno_naduro@example.net';
+            $user->save();
+        },
+    ]
+]);
+
+it('can update user primaryKey without duplication', function () {
+    expect(1)->toEqual(User::query()->count());
+})->with([
+    [
+        function () {
+            $user = new User;
+            $user->id = '1';
+            $user->name = 'Nuno Maduro';
+            $user->email = 'nuno_naduro@example.com';
+            $user->save();
+            $user->id = 2;
+            $user->save();
+        },
+    ],
+    [
+        function () {
+            $user = new User;
+            $user->id = 1;
+            $user->name = 'Nuno Maduro';
+            $user->email = 'nuno_naduro@example.com';
+            $user->save();
+            $user->id = 2;
+            $user->save();
+        },
+    ]
 ]);
